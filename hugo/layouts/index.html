@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <title>cf-kv-db test via Pages</title>
+  <style>
+    .indent {
+      margin-left: 2em;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>Test cf-kv-db via Pages</h1>
+  <h2>A Simple Database using Cloudflare KV</h2>
+  <h4>For details see <a href="https://github.com/NaNorNull/cfkvdb">https://github.com/NaNorNull/cfkvdb</a></h4>
+  <h4>See also a <a id="workers" href="#">Workers version of this page with dynamic authorization</a></h4>
+  <h4>Base Workers url = <span id="url"></span></h4>
+  <div id="main"></div>
+  <script defer>
+
+    const urlPrefix = '{{ getenv "URL_PREFIX" }}';
+    const server = '{{ getenv "SERVER" }}';
+
+    // token should be assigned out of band as part of authentication
+    const token = window.location.pathname.substring(1);
+
+    document.getElementById("url").innerText = server  + "/" + urlPrefix + "/" + token + "/";
+    document.getElementById("workers").setAttribute("href", server  + "/" + urlPrefix + "/1/test");
+
+    // Updated with ids from database adds
+    let ids = {
+      'add1': 'unassigned1',
+      'add2': 'unassigned2',
+      'add3': 'unassigned3',
+      'add4': 'unassigned4'
+    };
+
+    const tests = new Map();
+    tests.set('add1', 'add/person/{"name":"A Name"}');
+    tests.set('add2', 'add/person/{"name":"Another Name"}');
+    tests.set('add3', 'add/item/{"sku":"123456"}');
+    tests.set('add4', 'add/item/{"sku":"987654"}');
+    tests.set('listTypes', 'listTypes');
+    tests.set('listPersonAll', 'list/person/{}');
+    tests.set('listPersonOne', 'list/person/{"eq": {"name": "A Name"}}');
+    tests.set('listItemAll', 'list/item/{}');
+    tests.set('listItemSix', 'list/item/{"re": {"sku": ".*6$"}}');
+    tests.set('listItemOr', 'list/item/{"or": [{"eq": {"sku": "123456"}},{"eq": {"sku": "8888888"}}]}');
+    tests.set('get1', 'get/person/{"id":"{id1}"}');
+    tests.set('delete1', 'delete/person/{"id":"{id1}"}');
+    tests.set('get1AfterDelete', 'get/person/{"id":"{id1}"}');
+    tests.set('listPersonAll2nd', 'list/person/{}');
+    tests.set('get3', 'get/item/{"id":"{id3}"}');
+    tests.set('delete3', 'delete/item/{"id":"{id3}"}');
+    tests.set('listItemAll2nd', 'list/item/{}');
+    tests.set('delete2', 'delete/person/{"id":"{id2}"}');
+    tests.set('update4', 'update/item/{"id":"{id4}", "sku":"ab123"}');
+    tests.set('get4', 'get/item/{"id":"{id4}"}');
+    tests.set('listItemAll3rd', 'list/item/{}');
+    tests.set('listTypes2nd', 'listTypes');
+    tests.set('delete4', 'delete/item/{"id":"{id4}"}');
+    tests.set('listItemAll4th', 'list/item/{}');
+
+    // Display the test's urls on the page
+    tests.forEach((query, id) => {
+      document.getElementById('main')
+        .insertAdjacentHTML('beforeend',
+          '<div>' +
+          '<div id = "heading_' + id + '">' + query + '</div>' +
+          '<p class="indent" id="' + id + '"></p>' +
+          '</div>');
+    });
+
+    // run a test and display result
+    function runTest(anId) {
+      // Update {id1} with real ids from the add
+      const url = server + "/" + urlPrefix + "/" + token + "/" + tests.get(anId).replace("{id1}", ids.add1).replace("{id2}", ids.add2).replace("{id3}", ids.add3).replace("{id4}", ids.add4);
+      return fetch(url, { })
+      // credentials: 'omit' mode:"no-cors"
+        .then(response => (response.text()))
+        .then((text) => {
+          // save the id for later tests
+          if (anId.startsWith("add")) {
+            try {
+              json = JSON.parse(text);
+              ids[anId] = json.id;
+            } catch (e) {
+              console.log('I002 JSON.parse error ' + e);
+            }
+          }
+          document.getElementById(anId).innerHTML = text;
+          console.log("I003 returned " + text);
+          return { anId, url };
+        });
+    }
+
+    // setup testing
+    const initialPromise = Promise.resolve(null);
+
+    // run tests sequentially.  Thanks to James Sinclair
+    [...tests.keys()].reduce((priorPromise, key) =>
+      priorPromise.then(() =>
+        runTest(key).then((url) => {
+          // Update the headings to have the id rather than {id}
+          document.getElementById("heading_" + url.anId).innerHTML = url.url.replace(server + "/" + urlPrefix + "/" + token + "/", "");
+          console.log("I004 " + JSON.stringify(url));
+        })),
+      initialPromise
+    );
+
+  </script>
+</body>
+
+</html>

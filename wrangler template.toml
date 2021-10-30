@@ -1,0 +1,24 @@
+name = "cfkvdb"
+type = "webpack"
+
+account_id = "UpdateThis1234"
+workers_dev = true
+route = ""
+zone_id = ""
+compatibility_date = "2021-10-09"
+
+# Assign CFKVDB in the dashboard to the actual keystore id 
+# https://developers.cloudflare.com/workers/platform/environment-variables
+# or if using wrangler:
+kv_namespaces = [ 
+  { binding = "CFKVDB", id = "UpdateThis1234", preview_id = "UpdateThis5432" }
+]
+
+# Assign these variables in the dashboard if not using wrangler
+[vars]
+LOG_INFO = "False"    # Log information
+LOG_ERROR = "True"    # Log errors
+ALLOW_TEST = "True"   # Allow the test page to be used via "/1/test" - Disable for production
+URL_PREFIX = "query"  # url prefix for the web interface abc.com/query/...
+# Update this before deploying:
+HEADERS = '{ "Access-Control-Allow-Origin": "*" }'  # Change to restrict based on other web server access.  i.e. pages. Don't end with a /

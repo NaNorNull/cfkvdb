@@ -1,0 +1,2 @@
+disableKinds = ["sitemap", "RSS"]
+[taxonomies]
