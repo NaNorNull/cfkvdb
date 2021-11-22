@@ -1,10 +1,17 @@
+let LOG_INFO = false;
+let LOG_ERROR = false;
+
 class Db {
     // 
+    // Adjusted to work with Pages / functions.  ToDo Combine with the other.
+    //
     // A simple database with a query language on top of Cloudflare Key-Value
     // store (https://developers.cloudflare.com/workers/learning/how-kv-works) 
     // designed to be a light weight component that runs in a Cloudflare Worker
     // https://developers.cloudflare.com/workers/.This is the primary focus of 
     // the project with web interface provided as a convenience feature. 
+    //
+    // This version is designed to work via the Pages / Functions process.
     // 
     // Naming limitations
     //  The values of the token, type, area, ids 
@@ -91,9 +98,12 @@ class Db {
     // Intentional Exclusions: Sorting, Paging, TTL, Metadata   
     //
 
-    constructor() {
-        // allow setToken to change areas at any time
-        this.area = null;
+    constructor(theKV, logError, logInfo) {
+        
+        this.area = null; // allow setToken to change areas at any time
+        this.kv = theKV;
+        LOG_ERROR = logError || false;
+        LOG_INFO = logInfo || false;
     }
 
     async setToken(aToken) {
@@ -107,7 +117,7 @@ class Db {
 
         let jsonString = null;
         try {
-            jsonString = await CFKVDB.get("db_meta_token_" + aToken);
+            jsonString = await this.kv.get("db_meta_token_" + aToken);
             if (jsonString === null || jsonString === "") {
                 log("ERROR", "ST002: No valid value found in kv for b_meta_token_" + aToken);
                 return { "error": "ST002: Unauthorized - token value missing " + aToken };
@@ -142,7 +152,7 @@ class Db {
         const key = "db_meta_token_" + aToken;
 
         try {
-            await CFKVDB.put(key, JSON.stringify(anArea), { "expirationTtl": ttl });
+            await this.kv.put(key, JSON.stringify(anArea), { "expirationTtl": ttl });
         } catch (error) {
             log("ERROR", "GT003: getToken: " + error);
             return { "token": null, "error": "GT003: Token assignment failed" };
@@ -174,7 +184,7 @@ class Db {
         const keyPrefixAllTypes = "db_data_" + this.area + "_"
         let areaKeys = null;
         try {
-            areaKeys = await CFKVDB.list({ "prefix": keyPrefixAllTypes });
+            areaKeys = await this.kv.list({ "prefix": keyPrefixAllTypes });
         } catch (error) {
             log("ERROR", "LS002: Database List Error " + error);
             return { "types": null, "error": "LS002: Database List Error" };
@@ -202,7 +212,7 @@ class Db {
 
         let aList = null;
         try {
-            aList = await CFKVDB.list({ "prefix": keyPrefix });
+            aList = await this.kv.list({ "prefix": keyPrefix });
         } catch (error) {
             log("ERROR", "L002: Database List Error " + error);
             return { "types": null, "error": "L002: Database List Error" };
@@ -215,7 +225,7 @@ class Db {
             let anObject = null;
             let jsonString = null;
             try {
-                jsonString = await CFKVDB.get(aKey);
+                jsonString = await this.kv.get(aKey);
                 anObject = JSON.parse(jsonString);
             } catch (error) {
                 log("ERROR", "L003: Invalid JSON found in KV " + aKey + " JSON " + jsonString + " error: " + error);
@@ -265,7 +275,7 @@ class Db {
         const newValue = { "id": anId, ...anObject };
         const jsonValue = JSON.stringify(newValue);
         try {
-            await CFKVDB.put(aKey, jsonValue);
+            await this.kv.put(aKey, jsonValue);
         } catch (error) {
             log("ERROR", "A003: Add: " + error + " id " + anId + " JSON " + jsonValue);
             return { "token": null, "error": "A003: Database write failed " + anId };
@@ -284,7 +294,7 @@ class Db {
         }
 
         try {
-            await CFKVDB.delete(key);
+            await this.kv.delete(key);
         } catch (error) {
             log("ERROR", "D002: Delete failed: " + error + " key " + key);
             return { "error": "D002: Database delete failed " + anObject.id };
@@ -306,7 +316,7 @@ class Db {
 
         let jsonString = "";
         try {
-            jsonString = await CFKVDB.get(key);
+            jsonString = await this.kv.get(key);
             if (jsonString == null) {
                 log("ERROR", "G002: KV Get failed: key " + key);
                 return { "error": "G002: Database get failed " + anObject.id };
@@ -333,7 +343,7 @@ class Db {
 
         let jsonString = JSON.stringify(anObject);
         try {
-            await CFKVDB.put(key, jsonString);
+            await this.kv.put(key, jsonString);
         } catch (error) {
             log("ERROR", "U002: KV Update failed: " + error + " key " + key + " JSON " + jsonString);
             return { "error": "U002: Database update failed " + anObject.id };
@@ -452,7 +462,7 @@ function getKey(area, type, anObject) {
         return { "key": null, "error": error };
     }
 
-    if (anObject === undefined || !"id" in anObject || anObject.id == "") {
+    if (anObject === undefined || !("id" in anObject) || anObject.id == "") {
         log("ERROR", "GK001: Object id not found: " + area + " " + type + " " + JSON.stringify(anObject));
         return { "key": null, "error": "GK001. id not found." };
     }
@@ -464,10 +474,9 @@ function getKey(area, type, anObject) {
 }
 
 function log(level, error) {
-
-    if (typeof LOG_INFO == 'string' && LOG_INFO === "True" && level === "INFO") {
+    if (LOG_INFO && level === "INFO") {
         console.log(level + ": " + error);
-    } else if (typeof LOG_ERROR == 'string' && LOG_ERROR === "True" && level === "ERROR") {
+    } else if (LOG_ERROR && level === "ERROR") {
         console.log(level + ": " + error);
     }
 }

@@ -11,3 +11,4 @@ node_modules/
 wrangler.toml
 .prettierrc
 hugo/public/
+package-lock.json

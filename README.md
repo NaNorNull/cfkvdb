@@ -10,6 +10,8 @@ The second is in `index.js` and is a simple web-based API around the core databa
 
 The third is a static site found in the `hugo` directory that can be deployed via Cloudflare pages to perform the same tests as found in `index.js`.
 
+Sample Pages / Functions structures also exist to use as part of the Functions capability built into Pages.  See the functions directory.  This is functionally equivalent to the hugo pages that call the service via an external workers call.
+
 ## Deploying
 To use, clone this repository and use wrangler to publish to your worker. Copy `wrangler template.toml` into `wrangler.toml` and update the configuration to match the worker settings. See [Cloudflare Workers - getting started guide](https://developers.cloudflare.com/workers/get-started/guide). Go to:
 https://abc.dev.workers.dev/query/1/test replacing `abc`, `def`, and `query` with the values assigned to the worker environment to run the test. Disable `ALLOW_TEST` environment variable when not testing.
